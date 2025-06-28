@@ -5,11 +5,12 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 from collections import Counter
+import pandas as pd
 import re
 
-st.set_page_config(page_title="Basic SEO Analyzer", layout="centered")
-st.title("🔍 Basic SEO Analyzer")
-st.write("Enter a URL to perform a simple on-page SEO analysis.")
+st.set_page_config(page_title="Advanced SEO Analyzer", layout="centered")
+st.title("🔍 Advanced SEO Analyzer")
+st.write("Enter a URL to perform an enhanced on-page SEO analysis including keyword density.")
 
 url = st.text_input("Enter a full URL (e.g., https://example.com)")
 
@@ -30,7 +31,7 @@ def clean_and_tokenize(text):
         "this", "that", "it", "be", "are", "from", "or", "we", "you", "your", "can", "our"
     ])
     keywords = [word for word in words if word not in stopwords and len(word) > 2]
-    return Counter(keywords)
+    return Counter(keywords), len(words)
 
 def analyze_seo(html):
     soup = BeautifulSoup(html, "html.parser")
@@ -55,7 +56,12 @@ def analyze_seo(html):
     # Word count & keyword density
     text = soup.get_text(separator=' ', strip=True)
     word_count = len(text.split())
-    keyword_freq = clean_and_tokenize(text).most_common(10)
+    keyword_counter, total_words = clean_and_tokenize(text)
+
+    keyword_density = []
+    for word, count in keyword_counter.most_common(20):
+        density = round((count / total_words) * 100, 2)
+        keyword_density.append({"Keyword": word, "Frequency": count, "Density (%)": density})
 
     return {
         "title": title,
@@ -64,7 +70,7 @@ def analyze_seo(html):
         "images_total": images_total,
         "images_missing_alt": images_missing_alt,
         "word_count": word_count,
-        "keyword_freq": keyword_freq,
+        "keyword_density": keyword_density,
     }
 
 if url:
@@ -93,9 +99,9 @@ if url:
             st.subheader("📊 Word Count")
             st.write(f"{results['word_count']} words on the page")
 
-            st.subheader("🔑 Keyword Density (Top 10 Words)")
-            for keyword, freq in results["keyword_freq"]:
-                st.write(f"{keyword}: {freq} times")
+            st.subheader("🔑 Keyword Density Analysis")
+            keyword_df = pd.DataFrame(results["keyword_density"])
+            st.dataframe(keyword_df, use_container_width=True)
 
             st.markdown("---")
             st.caption("Made with ❤️ using Streamlit")
