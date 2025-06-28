@@ -123,21 +123,37 @@ def render_gauge(label, value, max_value):
 def display_recommendations(score, results):
     st.subheader("📌 Recommendations")
 
-    if score >= 85:
-        st.success("Great job! Your page is well-optimized.")
-    elif score >= 60:
-        st.info("Good work, but there's room for improvement. Check title, description, and image ALT tags.")
-    else:
-        st.warning("SEO score is low. Ensure title, meta description, H1s, and image ALT attributes are all present and optimized.")
-
     keyword = results["keyword"]
-    if keyword:
-        title_present = results["title"] != "❌ No title tag"
-        desc_present = results["meta_description"] != "❌ No meta description"
-        h1_present = results["h1_tags"] and all(h != "❌ No H1 tag found" for h in results["h1_tags"])
+    title_missing = results["title"] == "❌ No title tag"
+    desc_missing = results["meta_description"] == "❌ No meta description"
+    h1_missing = not results["h1_tags"] or all(h == "❌ No H1 tag found" for h in results["h1_tags"])
+    alt_missing = results["images_total"] > 0 and results["images_missing_alt"] == results["images_total"]
 
-        if title_present and desc_present and h1_present and not results["keyword_consistent"]:
-            st.error("⚠️ Keyword mismatch: The same keyword was not found in the title, meta description, and H1 tag.")
+    # Highlight missing elements
+    if title_missing or desc_missing or h1_missing or alt_missing:
+        st.warning("⚠️ Some important elements are missing:")
+        if title_missing:
+            st.write("- Missing **meta title**")
+        if desc_missing:
+            st.write("- Missing **meta description**")
+        if h1_missing:
+            st.write("- Missing **H1 tag**")
+        if alt_missing:
+            st.write("- All images are missing **ALT text**")
+    else:
+        # Only show general score-based message if all key elements exist
+        if score >= 85:
+            st.success("✅ Great job! Your page is well-optimized.")
+        elif score >= 60:
+            st.info("Good work, but there's room for improvement in keyword placement or content structure.")
+        else:
+            st.warning("SEO score is low. Improve content, metadata, and structure.")
+
+    # Keyword consistency check (only if all 3 tags exist)
+    if keyword and not title_missing and not desc_missing and not h1_missing:
+        if not results["keyword_consistent"]:
+            st.error("⚠️ Keyword mismatch: The same keyword was not found in the **title**, **meta description**, and **H1 tag**.")
+
 
 # Main execution
 if url:
