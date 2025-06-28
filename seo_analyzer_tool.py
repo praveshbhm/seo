@@ -31,7 +31,12 @@ def clean_and_tokenize(text):
         "this", "that", "it", "be", "are", "from", "or", "we", "you", "your", "can", "our"
     ])
     keywords = [word for word in words if word not in stopwords and len(word) > 2]
-    return Counter(keywords), len(words)
+    return keywords, Counter(keywords), len(words)
+
+def get_ngram_density(words, n):
+    ngrams = zip(*[words[i:] for i in range(n)])
+    phrases = [' '.join(gram) for gram in ngrams]
+    return Counter(phrases).most_common(10)
 
 def analyze_seo(html):
     soup = BeautifulSoup(html, "html.parser")
@@ -55,13 +60,16 @@ def analyze_seo(html):
 
     # Word count & keyword density
     text = soup.get_text(separator=' ', strip=True)
-    word_count = len(text.split())
-    keyword_counter, total_words = clean_and_tokenize(text)
+    words, keyword_counter, total_words = clean_and_tokenize(text)
 
     keyword_density = []
     for word, count in keyword_counter.most_common(20):
         density = round((count / total_words) * 100, 2)
         keyword_density.append({"Keyword": word, "Frequency": count, "Density (%)": density})
+
+    bigrams = get_ngram_density(words, 2)
+    trigrams = get_ngram_density(words, 3)
+    fourgrams = get_ngram_density(words, 4)
 
     return {
         "title": title,
@@ -69,8 +77,11 @@ def analyze_seo(html):
         "h1_tags": h1_info,
         "images_total": images_total,
         "images_missing_alt": images_missing_alt,
-        "word_count": word_count,
+        "word_count": total_words,
         "keyword_density": keyword_density,
+        "bigrams": bigrams,
+        "trigrams": trigrams,
+        "fourgrams": fourgrams,
     }
 
 if url:
@@ -99,9 +110,21 @@ if url:
             st.subheader("📊 Word Count")
             st.write(f"{results['word_count']} words on the page")
 
-            st.subheader("🔑 Keyword Density Analysis")
+            st.subheader("🔑 Keyword Density Analysis (Single Words)")
             keyword_df = pd.DataFrame(results["keyword_density"])
             st.dataframe(keyword_df, use_container_width=True)
+
+            st.subheader("🔗 2-Word Phrases (Bigrams)")
+            for phrase, freq in results["bigrams"]:
+                st.write(f"{phrase} — {freq} times")
+
+            st.subheader("🔗 3-Word Phrases (Trigrams)")
+            for phrase, freq in results["trigrams"]:
+                st.write(f"{phrase} — {freq} times")
+
+            st.subheader("🔗 4-Word Phrases")
+            for phrase, freq in results["fourgrams"]:
+                st.write(f"{phrase} — {freq} times")
 
             st.markdown("---")
             st.caption("Made with ❤️ using Streamlit")
