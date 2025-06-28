@@ -7,13 +7,16 @@ from urllib.parse import urlparse
 from collections import Counter
 import pandas as pd
 import re
+import openai  # Requires openai package
 
 st.set_page_config(page_title="Advanced SEO Analyzer", layout="centered")
 st.title("🔍 Advanced SEO Analyzer")
-st.write("Enter a URL to perform an enhanced on-page SEO analysis including keyword density.")
+st.write("Enter a URL to perform an enhanced on-page SEO analysis including keyword density and meta suggestions.")
 
 url = st.text_input("Enter a full URL (e.g., https://example.com)")
 target_keyword = st.text_input("Enter a target keyword or phrase to compare")
+openai_api_key = st.text_input("OpenAI API Key (optional, for meta suggestions)", type="password")
+
 
 def fetch_page_content(url):
     try:
@@ -76,6 +79,10 @@ def analyze_seo(html, target):
     target_count = cleaned_text.count(target.lower()) if target else 0
     target_density = round((target_count / total_words) * 100, 2) if total_words > 0 else 0
 
+    # SEO Scores
+    title_score = min(len(title), 60)
+    desc_score = min(len(meta_description), 160)
+
     return {
         "title": title,
         "meta_description": meta_description,
@@ -89,7 +96,22 @@ def analyze_seo(html, target):
         "fourgrams": fourgrams,
         "target_count": target_count,
         "target_density": target_density,
+        "title_score": title_score,
+        "desc_score": desc_score,
+        "full_text": cleaned_text[:2000],
     }
+
+def generate_meta(text, api_key):
+    try:
+        openai.api_key = api_key
+        prompt = f"Generate a compelling SEO meta description under 160 characters for the following content:\n{text}"
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response['choices'][0]['message']['content'].strip()
+    except Exception as e:
+        return f"⚠️ Error: {e}"
 
 if url:
     if not urlparse(url).scheme:
@@ -102,9 +124,16 @@ if url:
 
             st.subheader("🔖 Title Tag")
             st.write(results["title"])
+            st.write(f"Length Score: {results['title_score']} / 60")
 
             st.subheader("📝 Meta Description")
             st.write(results["meta_description"])
+            st.write(f"Length Score: {results['desc_score']} / 160")
+
+            if openai_api_key:
+                st.subheader("💡 Suggested Meta Description (AI)")
+                meta_suggestion = generate_meta(results["full_text"], openai_api_key)
+                st.info(meta_suggestion)
 
             st.subheader("📢 H1 Tags")
             for i, h1 in enumerate(results["h1_tags"], 1):
