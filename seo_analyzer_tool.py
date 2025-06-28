@@ -42,7 +42,6 @@ def analyze_seo(html, keyword):
 
     title = soup.title.string.strip() if soup.title else "❌ No title tag"
 
-    # ✅ Improved meta description check
     meta_desc_tag = (
         soup.find("meta", attrs={"name": "description"}) or
         soup.find("meta", attrs={"name": "Description"}) or
@@ -121,8 +120,9 @@ def render_gauge(label, value, max_value):
     ))
     st.plotly_chart(fig, use_container_width=True)
 
-def display_recommendations(score, keyword, consistent):
+def display_recommendations(score, results):
     st.subheader("📌 Recommendations")
+
     if score >= 85:
         st.success("Great job! Your page is well-optimized.")
     elif score >= 60:
@@ -130,10 +130,16 @@ def display_recommendations(score, keyword, consistent):
     else:
         st.warning("SEO score is low. Ensure title, meta description, H1s, and image ALT attributes are all present and optimized.")
 
-    if keyword and not consistent:
-        st.error("⚠️ Keyword mismatch: The same keyword was not found in the title, meta description, and H1 tag.")
+    keyword = results["keyword"]
+    if keyword:
+        title_present = results["title"] != "❌ No title tag"
+        desc_present = results["meta_description"] != "❌ No meta description"
+        h1_present = results["h1_tags"] and all(h != "❌ No H1 tag found" for h in results["h1_tags"])
 
-# Run analyzer
+        if title_present and desc_present and h1_present and not results["keyword_consistent"]:
+            st.error("⚠️ Keyword mismatch: The same keyword was not found in the title, meta description, and H1 tag.")
+
+# Main execution
 if url:
     if not urlparse(url).scheme:
         st.error("Please enter a valid URL with http:// or https://")
@@ -177,7 +183,7 @@ if url:
             st.subheader("🏁 Total SEO Score")
             render_gauge("Total SEO Score", results['total_score'], 100)
 
-            display_recommendations(results['total_score'], results['keyword'], results['keyword_consistent'])
+            display_recommendations(results['total_score'], results)
 
             st.markdown("---")
             st.caption("Made with ❤️ using Streamlit")
