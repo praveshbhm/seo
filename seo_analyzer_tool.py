@@ -13,6 +13,7 @@ st.title("🔍 Advanced SEO Analyzer")
 st.write("Enter a URL to perform an enhanced on-page SEO analysis including keyword density.")
 
 url = st.text_input("Enter a full URL (e.g., https://example.com)")
+target_keyword = st.text_input("Enter a target keyword or phrase to compare")
 
 def fetch_page_content(url):
     try:
@@ -31,14 +32,14 @@ def clean_and_tokenize(text):
         "this", "that", "it", "be", "are", "from", "or", "we", "you", "your", "can", "our"
     ])
     keywords = [word for word in words if word not in stopwords and len(word) > 2]
-    return keywords, Counter(keywords), len(words)
+    return keywords, Counter(keywords), len(words), text
 
 def get_ngram_density(words, n):
     ngrams = zip(*[words[i:] for i in range(n)])
     phrases = [' '.join(gram) for gram in ngrams]
     return Counter(phrases).most_common(10)
 
-def analyze_seo(html):
+def analyze_seo(html, target):
     soup = BeautifulSoup(html, "html.parser")
 
     # Title
@@ -60,7 +61,7 @@ def analyze_seo(html):
 
     # Word count & keyword density
     text = soup.get_text(separator=' ', strip=True)
-    words, keyword_counter, total_words = clean_and_tokenize(text)
+    words, keyword_counter, total_words, cleaned_text = clean_and_tokenize(text)
 
     keyword_density = []
     for word, count in keyword_counter.most_common(20):
@@ -70,6 +71,10 @@ def analyze_seo(html):
     bigrams = get_ngram_density(words, 2)
     trigrams = get_ngram_density(words, 3)
     fourgrams = get_ngram_density(words, 4)
+
+    # Target keyword/phrase count
+    target_count = cleaned_text.count(target.lower()) if target else 0
+    target_density = round((target_count / total_words) * 100, 2) if total_words > 0 else 0
 
     return {
         "title": title,
@@ -82,6 +87,8 @@ def analyze_seo(html):
         "bigrams": bigrams,
         "trigrams": trigrams,
         "fourgrams": fourgrams,
+        "target_count": target_count,
+        "target_density": target_density,
     }
 
 if url:
@@ -91,7 +98,7 @@ if url:
         html = fetch_page_content(url)
         if html:
             st.success("Page fetched successfully!")
-            results = analyze_seo(html)
+            results = analyze_seo(html, target_keyword)
 
             st.subheader("🔖 Title Tag")
             st.write(results["title"])
@@ -125,6 +132,12 @@ if url:
             st.subheader("🔗 4-Word Phrases")
             for phrase, freq in results["fourgrams"]:
                 st.write(f"{phrase} — {freq} times")
+
+            if target_keyword:
+                st.subheader("🎯 Target Keyword Analysis")
+                st.write(f"**Keyword/Phrase:** '{target_keyword}'")
+                st.write(f"Occurrences: {results['target_count']} times")
+                st.write(f"Density: {results['target_density']}% of total words")
 
             st.markdown("---")
             st.caption("Made with ❤️ using Streamlit")
