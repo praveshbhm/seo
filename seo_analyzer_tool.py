@@ -14,6 +14,7 @@ st.title("🔍 Advanced SEO Analyzer")
 st.write("Enter a URL to perform an enhanced on-page SEO analysis including keyword density and SEO scores.")
 
 url = st.text_input("Enter a full URL (e.g., https://example.com)")
+target_keyword = st.text_input("Enter your target keyword/phrase (e.g., best SEO tools)").strip().lower()
 
 def fetch_page_content(url):
     try:
@@ -39,7 +40,7 @@ def get_ngram_density(words, n):
     phrases = [' '.join(gram) for gram in ngrams]
     return Counter(phrases).most_common(10)
 
-def analyze_seo(html):
+def analyze_seo(html, keyword):
     soup = BeautifulSoup(html, "html.parser")
 
     title = soup.title.string.strip() if soup.title else "❌ No title tag"
@@ -65,12 +66,15 @@ def analyze_seo(html):
     h1_score = 10 if h1_tags else 0
     image_score = 10 if images_total == 0 else round(((images_total - images_missing_alt) / images_total) * 10, 2)
 
-    keyword_in_title = 5 if "keyword" in title.lower() else 0
-    keyword_in_h1 = 5 if any("keyword" in h.lower() for h in h1_tags) else 0
+    keyword_in_title = 5 if keyword and keyword in title.lower() else 0
+    keyword_in_h1 = 5 if keyword and any(keyword in h.lower() for h in h1_tags) else 0
+    keyword_in_meta = 5 if keyword and keyword in meta_description.lower() else 0
     canonical_tag = 5 if soup.find("link", rel="canonical") else 0
 
-    weighted_sum = (title_score / 60) * 35 + (desc_score / 160) * 25 + h1_score + image_score + keyword_in_title + keyword_in_h1 + canonical_tag
-    total_score = round((weighted_sum / 90) * 100, 2)
+    keyword_consistency_score = 10 if keyword_in_title and keyword_in_h1 and keyword_in_meta else 0
+
+    weighted_sum = (title_score / 60) * 35 + (desc_score / 160) * 25 + h1_score + image_score + keyword_in_title + keyword_in_h1 + keyword_in_meta + canonical_tag + keyword_consistency_score
+    total_score = round((weighted_sum / 100) * 100, 2)
 
     return {
         "title": title,
@@ -84,7 +88,9 @@ def analyze_seo(html):
         "fourgrams": fourgrams,
         "title_score": title_score,
         "desc_score": desc_score,
-        "total_score": total_score
+        "total_score": total_score,
+        "keyword_consistent": keyword_consistency_score == 10,
+        "keyword": keyword
     }
 
 def render_gauge(label, value, max_value):
@@ -104,7 +110,7 @@ def render_gauge(label, value, max_value):
     ))
     st.plotly_chart(fig, use_container_width=True)
 
-def display_recommendations(score):
+def display_recommendations(score, keyword, consistent):
     st.subheader("📌 Recommendations")
     if score >= 85:
         st.success("Great job! Your page is well-optimized.")
@@ -113,6 +119,9 @@ def display_recommendations(score):
     else:
         st.warning("SEO score is low. Ensure title, meta description, H1s, and image ALT attributes are all present and optimized.")
 
+    if keyword and not consistent:
+        st.error("⚠️ Keyword mismatch: The same keyword was not found in the title, meta description, and H1 tag.")
+
 if url:
     if not urlparse(url).scheme:
         st.error("Please enter a valid URL with http:// or https://")
@@ -120,7 +129,7 @@ if url:
         html = fetch_page_content(url)
         if html:
             st.success("Page fetched successfully!")
-            results = analyze_seo(html)
+            results = analyze_seo(html, target_keyword)
 
             st.subheader("🔖 Title Tag")
             st.write(results["title"])
@@ -156,7 +165,7 @@ if url:
             st.subheader("🏁 Total SEO Score")
             render_gauge("Total SEO Score", results['total_score'], 100)
 
-            display_recommendations(results['total_score'])
+            display_recommendations(results['total_score'], results['keyword'], results['keyword_consistent'])
 
             st.markdown("---")
             st.caption("Made with ❤️ using Streamlit")
