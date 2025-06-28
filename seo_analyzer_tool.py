@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 from collections import Counter
 import pandas as pd
 import re
-import openai  # Requires openai package
+from openai import OpenAI  # Updated for openai>=1.0.0
 
 st.set_page_config(page_title="Advanced SEO Analyzer", layout="centered")
 st.title("🔍 Advanced SEO Analyzer")
@@ -103,13 +103,13 @@ def analyze_seo(html, target):
 
 def generate_meta(text, api_key):
     try:
-        openai.api_key = api_key
+        client = OpenAI(api_key=api_key)
         prompt = f"Generate a compelling SEO meta description under 160 characters for the following content:\n{text}"
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}]
         )
-        return response['choices'][0]['message']['content'].strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
         return f"⚠️ Error: {e}"
 
