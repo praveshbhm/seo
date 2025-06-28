@@ -14,7 +14,6 @@ st.title("🔍 Advanced SEO Analyzer")
 st.write("Enter a URL to perform an enhanced on-page SEO analysis including keyword density and SEO scores.")
 
 url = st.text_input("Enter a full URL (e.g., https://example.com)")
-target_keyword = st.text_input("Enter a target keyword or phrase to compare")
 
 def fetch_page_content(url):
     try:
@@ -40,27 +39,20 @@ def get_ngram_density(words, n):
     phrases = [' '.join(gram) for gram in ngrams]
     return Counter(phrases).most_common(10)
 
-def analyze_seo(html, target):
+def analyze_seo(html):
     soup = BeautifulSoup(html, "html.parser")
 
-    # Title
     title = soup.title.string.strip() if soup.title else "❌ No title tag"
-
-    # Meta Description
     meta_desc_tag = soup.find("meta", attrs={"name": "description"})
     meta_description = meta_desc_tag["content"].strip() if meta_desc_tag else "❌ No meta description"
-
-    # H1 Tags
     h1_tags = [h1.get_text().strip() for h1 in soup.find_all("h1")]
     h1_info = h1_tags if h1_tags else ["❌ No H1 tag found"]
 
-    # Image ALT tags
     images = soup.find_all("img")
     missing_alt = [img for img in images if not img.get("alt")]
     images_total = len(images)
     images_missing_alt = len(missing_alt)
 
-    # Word count
     text = soup.get_text(separator=' ', strip=True)
     words, keyword_counter, total_words, cleaned_text = clean_and_tokenize(text)
 
@@ -68,13 +60,12 @@ def analyze_seo(html, target):
     trigrams = get_ngram_density(words, 3)
     fourgrams = get_ngram_density(words, 4)
 
-    # Target keyword/phrase count
-    target_count = cleaned_text.count(target.lower()) if target else 0
-    target_density = round((target_count / total_words) * 100, 2) if total_words > 0 else 0
-
-    # SEO Scores
     title_score = min(len(title), 60)
     desc_score = min(len(meta_description), 160)
+    h1_score = 10 if h1_tags else 0
+    image_score = 10 if images_total == 0 else round(((images_total - images_missing_alt) / images_total) * 10, 2)
+
+    total_score = round((title_score / 60) * 30 + (desc_score / 160) * 30 + h1_score + image_score, 2)
 
     return {
         "title": title,
@@ -86,10 +77,9 @@ def analyze_seo(html, target):
         "bigrams": bigrams,
         "trigrams": trigrams,
         "fourgrams": fourgrams,
-        "target_count": target_count,
-        "target_density": target_density,
         "title_score": title_score,
-        "desc_score": desc_score
+        "desc_score": desc_score,
+        "total_score": total_score
     }
 
 def render_gauge(label, value, max_value):
@@ -109,6 +99,15 @@ def render_gauge(label, value, max_value):
     ))
     st.plotly_chart(fig, use_container_width=True)
 
+def display_recommendations(score):
+    st.subheader("📌 Recommendations")
+    if score >= 85:
+        st.success("Great job! Your page is well-optimized.")
+    elif score >= 60:
+        st.info("Good work, but there's room for improvement. Check title, description, and image ALT tags.")
+    else:
+        st.warning("SEO score is low. Ensure title, meta description, H1s, and image ALT attributes are all present and optimized.")
+
 if url:
     if not urlparse(url).scheme:
         st.error("Please enter a valid URL with http:// or https://")
@@ -116,7 +115,7 @@ if url:
         html = fetch_page_content(url)
         if html:
             st.success("Page fetched successfully!")
-            results = analyze_seo(html, target_keyword)
+            results = analyze_seo(html)
 
             st.subheader("🔖 Title Tag")
             st.write(results["title"])
@@ -149,11 +148,10 @@ if url:
             for phrase, freq in results["fourgrams"]:
                 st.write(f"{phrase} — {freq} times")
 
-            if target_keyword:
-                st.subheader("🎯 Target Keyword Analysis")
-                st.write(f"**Keyword/Phrase:** '{target_keyword}'")
-                st.write(f"Occurrences: {results['target_count']} times")
-                st.write(f"Density: {results['target_density']}% of total words")
+            st.subheader("🏁 Total SEO Score")
+            render_gauge("Total SEO Score", results['total_score'], 100)
+
+            display_recommendations(results['total_score'])
 
             st.markdown("---")
             st.caption("Made with ❤️ using Streamlit")
