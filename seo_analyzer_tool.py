@@ -8,6 +8,7 @@ import plotly.graph_objects as go
 
 st.set_page_config(page_title="Advanced SEO Analyzer", layout="centered")
 st.title("🔍 Advanced SEO Analyzer")
+st.markdown("*Developed by **Pravesh Patel***", unsafe_allow_html=True)
 st.write("Enter a URL to perform an enhanced on-page SEO analysis including keyword density and SEO scores.")
 
 url = st.text_input("Enter a full URL (e.g., https://example.com)")
@@ -75,13 +76,13 @@ def analyze_seo(html, keyword):
     keyword_in_meta = 5 if keyword and keyword in meta_description.lower() else 0
     canonical_tag = 5 if soup.find("link", rel="canonical") else 0
 
-    keyword_consistency_score = 10 if keyword_in_title and keyword_in_h1 and keyword_in_meta else 0
+    keyword_consistency_score = 10 if keyword_in_title and keyword_in_meta and keyword_in_h1 else 0
 
     weighted_sum = (
         (title_score / 60) * 35 +
         (desc_score / 160) * 25 +
         h1_score + image_score +
-        keyword_in_title + keyword_in_h1 + keyword_in_meta +
+        keyword_in_title + keyword_in_meta + keyword_in_h1 +
         canonical_tag + keyword_consistency_score
     )
     total_score = round((weighted_sum / 100) * 100, 2)
@@ -129,7 +130,6 @@ def display_recommendations(score, results):
     h1_missing = not results["h1_tags"] or all(h == "❌ No H1 tag found" for h in results["h1_tags"])
     alt_missing = results["images_total"] > 0 and results["images_missing_alt"] == results["images_total"]
 
-    # Highlight missing elements
     if title_missing or desc_missing or h1_missing or alt_missing:
         st.warning("⚠️ Some important elements are missing:")
         if title_missing:
@@ -141,7 +141,6 @@ def display_recommendations(score, results):
         if alt_missing:
             st.write("- All images are missing **ALT text**")
     else:
-        # Only show general score-based message if all key elements exist
         if score >= 85:
             st.success("✅ Great job! Your page is well-optimized.")
         elif score >= 60:
@@ -149,13 +148,11 @@ def display_recommendations(score, results):
         else:
             st.warning("SEO score is low. Improve content, metadata, and structure.")
 
-    # Keyword consistency check (only if all 3 tags exist)
     if keyword and not title_missing and not desc_missing and not h1_missing:
         if not results["keyword_consistent"]:
             st.error("⚠️ Keyword mismatch: The same keyword was not found in the **title**, **meta description**, and **H1 tag**.")
 
-
-# Main execution
+# Run app
 if url:
     if not urlparse(url).scheme:
         st.error("Please enter a valid URL with http:// or https://")
@@ -202,4 +199,4 @@ if url:
             display_recommendations(results['total_score'], results)
 
             st.markdown("---")
-            st.caption("Made with ❤️ using Streamlit")
+            st.caption("Made with ❤️ using Streamlit | Developed by Pravesh Patel")
