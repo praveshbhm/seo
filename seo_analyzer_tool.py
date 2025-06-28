@@ -7,16 +7,14 @@ from urllib.parse import urlparse
 from collections import Counter
 import pandas as pd
 import re
-from openai import OpenAI  # Updated for openai>=1.0.0
+import plotly.graph_objects as go
 
 st.set_page_config(page_title="Advanced SEO Analyzer", layout="centered")
 st.title("🔍 Advanced SEO Analyzer")
-st.write("Enter a URL to perform an enhanced on-page SEO analysis including keyword density and meta suggestions.")
+st.write("Enter a URL to perform an enhanced on-page SEO analysis including keyword density and SEO scores.")
 
 url = st.text_input("Enter a full URL (e.g., https://example.com)")
 target_keyword = st.text_input("Enter a target keyword or phrase to compare")
-openai_api_key = st.text_input("OpenAI API Key (optional, for meta suggestions)", type="password")
-
 
 def fetch_page_content(url):
     try:
@@ -62,14 +60,9 @@ def analyze_seo(html, target):
     images_total = len(images)
     images_missing_alt = len(missing_alt)
 
-    # Word count & keyword density
+    # Word count
     text = soup.get_text(separator=' ', strip=True)
     words, keyword_counter, total_words, cleaned_text = clean_and_tokenize(text)
-
-    keyword_density = []
-    for word, count in keyword_counter.most_common(20):
-        density = round((count / total_words) * 100, 2)
-        keyword_density.append({"Keyword": word, "Frequency": count, "Density (%)": density})
 
     bigrams = get_ngram_density(words, 2)
     trigrams = get_ngram_density(words, 3)
@@ -90,28 +83,31 @@ def analyze_seo(html, target):
         "images_total": images_total,
         "images_missing_alt": images_missing_alt,
         "word_count": total_words,
-        "keyword_density": keyword_density,
         "bigrams": bigrams,
         "trigrams": trigrams,
         "fourgrams": fourgrams,
         "target_count": target_count,
         "target_density": target_density,
         "title_score": title_score,
-        "desc_score": desc_score,
-        "full_text": cleaned_text[:2000],
+        "desc_score": desc_score
     }
 
-def generate_meta(text, api_key):
-    try:
-        client = OpenAI(api_key=api_key)
-        prompt = f"Generate a compelling SEO meta description under 160 characters for the following content:\n{text}"
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        return f"⚠️ Error: {e}"
+def render_gauge(label, value, max_value):
+    fig = go.Figure(go.Indicator(
+        mode = "gauge+number",
+        value = value,
+        domain = {'x': [0, 1], 'y': [0, 1]},
+        title = {'text': label},
+        gauge = {
+            'axis': {'range': [0, max_value]},
+            'bar': {'color': "green"},
+            'steps': [
+                {'range': [0, max_value*0.5], 'color': "lightgray"},
+                {'range': [max_value*0.5, max_value], 'color': "gray"}
+            ]
+        }
+    ))
+    st.plotly_chart(fig, use_container_width=True)
 
 if url:
     if not urlparse(url).scheme:
@@ -124,16 +120,11 @@ if url:
 
             st.subheader("🔖 Title Tag")
             st.write(results["title"])
-            st.write(f"Length Score: {results['title_score']} / 60")
+            render_gauge("Title Length Score", results['title_score'], 60)
 
             st.subheader("📝 Meta Description")
             st.write(results["meta_description"])
-            st.write(f"Length Score: {results['desc_score']} / 160")
-
-            if openai_api_key:
-                st.subheader("💡 Suggested Meta Description (AI)")
-                meta_suggestion = generate_meta(results["full_text"], openai_api_key)
-                st.info(meta_suggestion)
+            render_gauge("Meta Description Length Score", results['desc_score'], 160)
 
             st.subheader("📢 H1 Tags")
             for i, h1 in enumerate(results["h1_tags"], 1):
@@ -145,10 +136,6 @@ if url:
 
             st.subheader("📊 Word Count")
             st.write(f"{results['word_count']} words on the page")
-
-            st.subheader("🔑 Keyword Density Analysis (Single Words)")
-            keyword_df = pd.DataFrame(results["keyword_density"])
-            st.dataframe(keyword_df, use_container_width=True)
 
             st.subheader("🔗 2-Word Phrases (Bigrams)")
             for phrase, freq in results["bigrams"]:
