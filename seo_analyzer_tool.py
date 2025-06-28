@@ -65,7 +65,12 @@ def analyze_seo(html):
     h1_score = 10 if h1_tags else 0
     image_score = 10 if images_total == 0 else round(((images_total - images_missing_alt) / images_total) * 10, 2)
 
-    total_score = round((title_score / 60) * 30 + (desc_score / 160) * 30 + h1_score + image_score, 2)
+    keyword_in_title = 5 if "keyword" in title.lower() else 0
+    keyword_in_h1 = 5 if any("keyword" in h.lower() for h in h1_tags) else 0
+    canonical_tag = 5 if soup.find("link", rel="canonical") else 0
+
+    weighted_sum = (title_score / 60) * 35 + (desc_score / 160) * 25 + h1_score + image_score + keyword_in_title + keyword_in_h1 + canonical_tag
+    total_score = round((weighted_sum / 90) * 100, 2)
 
     return {
         "title": title,
