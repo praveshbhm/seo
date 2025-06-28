@@ -1,11 +1,8 @@
-# seo_analyzer_tool.py
-
 import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 from collections import Counter
-import pandas as pd
 import re
 import plotly.graph_objects as go
 
@@ -122,6 +119,7 @@ def display_recommendations(score, keyword, consistent):
     if keyword and not consistent:
         st.error("⚠️ Keyword mismatch: The same keyword was not found in the title, meta description, and H1 tag.")
 
+# Run the analyzer
 if url:
     if not urlparse(url).scheme:
         st.error("Please enter a valid URL with http:// or https://")
