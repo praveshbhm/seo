@@ -4,6 +4,8 @@ import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
+from collections import Counter
+import re
 
 st.set_page_config(page_title="Basic SEO Analyzer", layout="centered")
 st.title("🔍 Basic SEO Analyzer")
@@ -19,6 +21,16 @@ def fetch_page_content(url):
     except Exception as e:
         st.error(f"Error fetching URL: {e}")
         return None
+
+def clean_and_tokenize(text):
+    text = re.sub(r"[^a-zA-Z\s]", "", text.lower())
+    words = text.split()
+    stopwords = set([
+        "the", "and", "is", "in", "to", "of", "for", "on", "with", "a", "an", "as", "by", "at",
+        "this", "that", "it", "be", "are", "from", "or", "we", "you", "your", "can", "our"
+    ])
+    keywords = [word for word in words if word not in stopwords and len(word) > 2]
+    return Counter(keywords)
 
 def analyze_seo(html):
     soup = BeautifulSoup(html, "html.parser")
@@ -40,9 +52,10 @@ def analyze_seo(html):
     images_total = len(images)
     images_missing_alt = len(missing_alt)
 
-    # Word count
+    # Word count & keyword density
     text = soup.get_text(separator=' ', strip=True)
     word_count = len(text.split())
+    keyword_freq = clean_and_tokenize(text).most_common(10)
 
     return {
         "title": title,
@@ -51,6 +64,7 @@ def analyze_seo(html):
         "images_total": images_total,
         "images_missing_alt": images_missing_alt,
         "word_count": word_count,
+        "keyword_freq": keyword_freq,
     }
 
 if url:
@@ -78,6 +92,10 @@ if url:
 
             st.subheader("📊 Word Count")
             st.write(f"{results['word_count']} words on the page")
+
+            st.subheader("🔑 Keyword Density (Top 10 Words)")
+            for keyword, freq in results["keyword_freq"]:
+                st.write(f"{keyword}: {freq} times")
 
             st.markdown("---")
             st.caption("Made with ❤️ using Streamlit")
