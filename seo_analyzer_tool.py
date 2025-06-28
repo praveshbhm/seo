@@ -41,8 +41,16 @@ def analyze_seo(html, keyword):
     soup = BeautifulSoup(html, "html.parser")
 
     title = soup.title.string.strip() if soup.title else "❌ No title tag"
-    meta_desc_tag = soup.find("meta", attrs={"name": "description"})
-    meta_description = meta_desc_tag["content"].strip() if meta_desc_tag else "❌ No meta description"
+
+    # ✅ Improved meta description check
+    meta_desc_tag = (
+        soup.find("meta", attrs={"name": "description"}) or
+        soup.find("meta", attrs={"name": "Description"}) or
+        soup.find("meta", attrs={"property": "og:description"}) or
+        soup.find("meta", attrs={"name": "twitter:description"})
+    )
+    meta_description = meta_desc_tag["content"].strip() if meta_desc_tag and meta_desc_tag.get("content") else "❌ No meta description"
+
     h1_tags = [h1.get_text().strip() for h1 in soup.find_all("h1")]
     h1_info = h1_tags if h1_tags else ["❌ No H1 tag found"]
 
@@ -70,7 +78,13 @@ def analyze_seo(html, keyword):
 
     keyword_consistency_score = 10 if keyword_in_title and keyword_in_h1 and keyword_in_meta else 0
 
-    weighted_sum = (title_score / 60) * 35 + (desc_score / 160) * 25 + h1_score + image_score + keyword_in_title + keyword_in_h1 + keyword_in_meta + canonical_tag + keyword_consistency_score
+    weighted_sum = (
+        (title_score / 60) * 35 +
+        (desc_score / 160) * 25 +
+        h1_score + image_score +
+        keyword_in_title + keyword_in_h1 + keyword_in_meta +
+        canonical_tag + keyword_consistency_score
+    )
     total_score = round((weighted_sum / 100) * 100, 2)
 
     return {
@@ -92,16 +106,16 @@ def analyze_seo(html, keyword):
 
 def render_gauge(label, value, max_value):
     fig = go.Figure(go.Indicator(
-        mode = "gauge+number",
-        value = value,
-        domain = {'x': [0, 1], 'y': [0, 1]},
-        title = {'text': label},
-        gauge = {
+        mode="gauge+number",
+        value=value,
+        domain={'x': [0, 1], 'y': [0, 1]},
+        title={'text': label},
+        gauge={
             'axis': {'range': [0, max_value]},
             'bar': {'color': "green"},
             'steps': [
-                {'range': [0, max_value*0.5], 'color': "lightgray"},
-                {'range': [max_value*0.5, max_value], 'color': "gray"}
+                {'range': [0, max_value * 0.5], 'color': "lightgray"},
+                {'range': [max_value * 0.5, max_value], 'color': "gray"}
             ]
         }
     ))
@@ -119,7 +133,7 @@ def display_recommendations(score, keyword, consistent):
     if keyword and not consistent:
         st.error("⚠️ Keyword mismatch: The same keyword was not found in the title, meta description, and H1 tag.")
 
-# Run the analyzer
+# Run analyzer
 if url:
     if not urlparse(url).scheme:
         st.error("Please enter a valid URL with http:// or https://")
